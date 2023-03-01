@@ -35,7 +35,7 @@ def initBD():
             surname1 varchar(30), \
             surname2 varchar(30), \
             age integer, \
-            salary integer); "
+            genre enum('H','D','NS/NC')); "
     cursor.execute(query)
             
     # Operación de inicialización de la tabla users (si está vacía)
@@ -44,7 +44,7 @@ def initBD():
     count = cursor.fetchall()[0][0]
     if(count == 0):
         query = "INSERT INTO users \
-            VALUES('user01','admin','Ramón','Sigüenza','López',35,20000);"
+            VALUES('user01','admin','Ramón','Sigüenza','López',35,'H');"
         cursor.execute(query)
 
     bd.commit()
@@ -56,7 +56,7 @@ def checkUser(user,password):
     bd=connectBD()
     cursor=bd.cursor()
 
-    query=f"SELECT user,name,surname1,surname2,age,salary FROM users WHERE user='{user}'\
+    query=f"SELECT user,name,surname1,surname2,age,genre FROM users WHERE user='{user}'\
             AND password='{password}'"
     print(query)
     cursor.execute(query)
@@ -69,7 +69,7 @@ def checkUser(user,password):
         return userData[0]
 
 # cresteUser: crea un nuevo usuario en la BD
-def createUser(user,password,name,surname1,surname2,age,salary):
+def createUser(user,password,name,surname1,surname2,age,genre):
     
     return
 

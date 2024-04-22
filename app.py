@@ -7,28 +7,28 @@ Created on February 2023
 
 # Importación de módulos externos
 import mysql.connector
-from flask import Flask,render_template,request;
+from flask import Flask, render_template, request, redirect, url_for
 
 # Funciones de backend #############################################################################
 
 # connectBD: conecta a la base de datos users en MySQL
 def connectBD():
     db = mysql.connector.connect(
-        host = "localhost",
-        user = "root",
-        passwd = "claumestra",
-        database = "users"
+        host="localhost",
+        user="root",
+        passwd="",
+        database="users"
     )
     return db
 
 # initBD: crea una tabla en la BD users, con un registro, si está vacía
 def initBD():
-    bd=connectBD()
-    cursor=bd.cursor()
-    
+    bd = connectBD()
+    cursor = bd.cursor()
+
     # cursor.execute("DROP TABLE IF EXISTS users;")
     # Operación de creación de la tabla users (si no existe en BD)
-    query="CREATE TABLE IF NOT EXISTS users(\
+    query = "CREATE TABLE IF NOT EXISTS users(\
             user varchar(30) primary key,\
             password varchar(30),\
             name varchar(30), \
@@ -37,12 +37,12 @@ def initBD():
             age integer, \
             genre enum('H','D','NS/NC')); "
     cursor.execute(query)
-            
+
     # Operación de inicialización de la tabla users (si está vacía)
-    query="SELECT count(*) FROM users;"
+    query = "SELECT count(*) FROM users;"
     cursor.execute(query)
     count = cursor.fetchall()[0][0]
-    if(count == 0):
+    if count == 0:
         query = "INSERT INTO users \
             VALUES('user01','admin','Ramón','Sigüenza','López',35,'H');"
         cursor.execute(query)
@@ -52,25 +52,33 @@ def initBD():
     return
 
 # checkUser: comprueba si el par usuario-contraseña existe en la BD
-def checkUser(user,password):
-    bd=connectBD()
-    cursor=bd.cursor()
+def checkUser(user, password):
+    bd = connectBD()
+    cursor = bd.cursor()
 
-    query=f"SELECT user,name,surname1,surname2,age,genre FROM users WHERE user='{user}'\
-            AND password='{password}'"
-    print(query)
-    cursor.execute(query)
+    # Utilizamos una consulta parametrizada para evitar la inyección de código
+    query = "SELECT user, name, surname1, surname2, age, genre FROM users WHERE user = %s AND password = %s"
+    cursor.execute(query, (user, password))
     userData = cursor.fetchall()
     bd.close()
-    
+
     if userData == []:
         return False
     else:
         return userData[0]
 
-# cresteUser: crea un nuevo usuario en la BD
-def createUser(user,password,name,surname1,surname2,age,genre):
-    
+# createUser: crea un nuevo usuario en la BD
+def createUser(user, password, name, surname1, surname2, age, genre):
+    bd = connectBD()
+    cursor = bd.cursor()
+
+    # Utilizamos una consulta parametrizada para evitar la inyección de código
+    query = "INSERT INTO users (user, password, name, surname1, surname2, age, genre) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    values = (user, password, name, surname1, surname2, age, genre)
+    cursor.execute(query, values)
+
+    bd.commit()
+    bd.close()
     return
 
 # Secuencia principal: configuración de la aplicación web ##########################################
@@ -84,26 +92,40 @@ def home():
 
 @app.route("/login")
 def login():
-    initBD()
     return render_template("login.html")
 
 @app.route("/signin")
 def signin():
-    return "SIGN IN PAGE"
+    return render_template("signin.html")
 
-@app.route("/results",methods=('GET', 'POST'))
+# Nueva ruta para la página de resultados
+@app.route("/results", methods=['GET', 'POST'])
 def results():
-    if request.method == ('POST'):
+    if request.method == 'POST':
         formData = request.form
-        user=formData['usuario']
-        password=formData['contrasena']
-        userData = checkUser(user,password)
+        user = formData['usuario']
+        password = formData['contrasena']
+        userData = checkUser(user, password)
 
         if userData == False:
-            return render_template("results.html",login=False)
+            return render_template("results.html", login=False)
         else:
-            return render_template("results.html",login=True,userData=userData)
-        
-# Configuración y arranque de la aplicación web
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.run(host='localhost', port=5000, debug=True)
+            return render_template("results.html", login=True, userData=userData)
+
+@app.route("/newUser", methods=['POST'])
+def newUser():
+    if request.method == 'POST':
+        formData = request.form
+        user = formData['usuario']
+        password = formData['contrasena']
+        name = formData['nombre']
+        surname1 = formData['apellido1']
+        surname2 = formData['apellido2']
+        age = int(formData['edad'])
+        genero = formData['genero']  
+        createUser(user, password, name, surname1, surname2, age, genero)
+        return redirect(url_for('signin'))  
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
